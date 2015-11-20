@@ -32,8 +32,8 @@ function Invoke-ExecCommandWMI
     This pings the system at 192.168.1.1 with 4 ping requests from the local system
 
     .EXAMPLE
-    > Invoke-WmiExecCommand -Command notepad.exe -User Chris -Pass password -Target chrispc
-    This command authenticates to chrispc and starts notepad.exe
+    > cat hostnames.txt | Invoke-WmiExecCommand -Command notepad.exe -User Chris -Pass password
+    This command receives hostnames to target from the pipeline, authenticates to them, and starts notepad.exe
 
     .LINK
     https://github.com/xorrior/RandomPS-Scripts
