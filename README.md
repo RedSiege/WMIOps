@@ -25,3 +25,5 @@ Thanks to:
     Invoke-RemoteScriptWithOutput       -   Executes a powershell script in memory on the target host via WMI and returns the output
     Find-UserSpecifiedFileWMI           -   Search for a file (wildcard supported) on a target system
     Invoke-FileTransferOverWMI          -   Uploads or Downloads files to/from the target machine over WMI
+
+Original blog post documenting release - [https://www.christophertruncer.com/introducing-wmi-ops/](https://www.christophertruncer.com/introducing-wmi-ops/)
