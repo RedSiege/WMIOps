@@ -1081,7 +1081,6 @@ function Invoke-DisplayDrivesWMI
             {
                 $filter = "DriveType = '4' OR DriveType = '3'"
                 Get-WmiObject -class win32_logicaldisk -ComputerName $computer -Filter $filter -Credential $cred
-                Get-WmiObject -class Win32_MappedLogicalDisk -ComputerName $computer -Credential $cred
             }
         }
 
@@ -1093,7 +1092,6 @@ function Invoke-DisplayDrivesWMI
             {
                 $filter = "DriveType = '4' OR DriveType = '3'"
                 Get-WmiObject -class win32_logicaldisk  -ComputerName $computer -Filter $filter
-                Get-WmiObject -class Win32_MappedLogicalDisk -ComputerName $computer
             }
         }
 
