@@ -1029,7 +1029,7 @@ function Invoke-FileTransferOverWMI
     }
 }
 
-function Invoke-DisplayDrivesWMI
+function Get-SystemDrivesWMI
 {
     <#
     .SYNOPSIS
@@ -1048,12 +1048,12 @@ function Invoke-DisplayDrivesWMI
     Host or array of hosts to target. Can be a hostname, IP address, or FQDN. Default is set to localhost.
 
     .EXAMPLE
-    > Invoke-WmiExecCommand -Command ping -n 4 192.168.1.1
-    This pings the system at 192.168.1.1 with 4 ping requests from the local system
+    > Get-SystemDrivesWMI -Targets win7pc
+    This command connects to the remote system over wmi with the current credentials it is using and enumerates drives (local and network) on the win7pc system.
 
     .EXAMPLE
-    > cat hostnames.txt | Invoke-WmiExecCommand -Command notepad.exe -User Chris -Pass password
-    This command receives hostnames to target from the pipeline, authenticates to them, and starts notepad.exe
+    > Get-SystemDrivesWMI -Targets win7pc2 -User test\chris -Pass Chris
+    This commands uses the credentials provided to list local and network drives on the win7pc2 system
 
     .LINK
     http://blogs.technet.com/b/heyscriptingguy/archive/2013/08/28/powertip-use-powershell-to-get-a-list-of-all-volumes.aspx
