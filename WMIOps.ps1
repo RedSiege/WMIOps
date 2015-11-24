@@ -1091,15 +1091,17 @@ function Invoke-DisplayDrivesWMI
             # Thanks Evan for catching this
             Foreach($computer in $TARGETS)
             {
-                Get-WmiObject -class win32_logicaldisk  -ComputerName $computer
-                Get-WmiObject -class Win32_MappedLogicalDisk -ComputerName $computer -Credential $cred
+                $filter = "DriveType = '4' OR DriveType = '3'"
+                Get-WmiObject -class win32_logicaldisk  -ComputerName $computer -Filter $filter
+                Get-WmiObject -class Win32_MappedLogicalDisk -ComputerName $computer
             }
         }
 
         else
         {
             # If this area of code is invoked, it runs the command on the same machine the script is loaded
-            Get-WmiObject -class win32_logicaldisk
+            $filter = "DriveType = '4' OR DriveType = '3'"
+            Get-WmiObject -class win32_logicaldisk -Filter $filter
         }
         
     }
