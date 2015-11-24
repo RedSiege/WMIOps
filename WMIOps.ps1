@@ -898,8 +898,8 @@ function Invoke-FileTransferOverWMI
     .PARAMETER LocalUser
     Specify a username for connecting back to the local system.  Needs to be local admin.
 
-    .PARAMETER LocalUser
-    Specify a username. Default is the current user context.
+    .PARAMETER LocalPass
+    Specify a password for local user account which connects back to local system.
 
     .PARAMETER TARGETS
     Host or array of hosts to target. Can be a hostname, IP address, or FQDN. Default is set to localhost.
@@ -1027,4 +1027,82 @@ function Invoke-FileTransferOverWMI
             Throw "You need to provide usernames, passwords, and the system to target!"
         }
     }
+}
+
+function Invoke-DisplayDrivesWMI
+{
+    <#
+    .SYNOPSIS
+    This function lists local and network drives connected to the target system.
+
+    .DESCRIPTION
+    This function lists local and network drives connected to the target system.
+
+    .PARAMETER User
+    Specify a username. Default is the current user context.
+
+    .PARAMETER Pass
+    Specify the password for the appropriate user.
+
+    .PARAMETER Targets
+    Host or array of hosts to target. Can be a hostname, IP address, or FQDN. Default is set to localhost.
+
+    .EXAMPLE
+    > Invoke-WmiExecCommand -Command ping -n 4 192.168.1.1
+    This pings the system at 192.168.1.1 with 4 ping requests from the local system
+
+    .EXAMPLE
+    > cat hostnames.txt | Invoke-WmiExecCommand -Command notepad.exe -User Chris -Pass password
+    This command receives hostnames to target from the pipeline, authenticates to them, and starts notepad.exe
+
+    .LINK
+    http://blogs.technet.com/b/heyscriptingguy/archive/2013/08/28/powertip-use-powershell-to-get-a-list-of-all-volumes.aspx
+    #>
+
+    param
+    (
+        #Parameter assignment
+        [Parameter(Mandatory = $False)]
+        [string]$User,
+        [Parameter(Mandatory = $False)] 
+        [string]$Pass,
+        [Parameter(Mandatory = $False, ValueFromPipeLine=$True)] 
+        [string[]]$Targets = "."
+    )
+
+    Process
+    {
+        if($User -and $Pass)
+        {
+            # This block of code is executed when starting a process on a remote machine via wmi
+            $password = ConvertTo-SecureString $Pass -asplaintext -force 
+            $cred = New-Object -Typename System.Management.Automation.PSCredential -argumentlist $User,$password
+            Foreach($computer in $TARGETS)
+            {
+                $filter = "DriveType = '4' OR DriveType = '3'"
+                Get-WmiObject -class win32_logicaldisk -ComputerName $computer -Filter $filter -Credential $cred
+                Get-WmiObject -class Win32_MappedLogicalDisk -ComputerName $computer -Credential $cred
+            }
+        }
+
+        elseif(($Targets -ne ".") -and !$User)
+        {
+            # user didn't enter creds. Assume using local user priv has local admin access to Targets
+            # Thanks Evan for catching this
+            Foreach($computer in $TARGETS)
+            {
+                Get-WmiObject -class win32_logicaldisk  -ComputerName $computer
+                Get-WmiObject -class Win32_MappedLogicalDisk -ComputerName $computer -Credential $cred
+            }
+        }
+
+        else
+        {
+            # If this area of code is invoked, it runs the command on the same machine the script is loaded
+            Get-WmiObject -class win32_logicaldisk
+        }
+        
+    }
+
+    end{}
 }
