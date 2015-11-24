@@ -1106,3 +1106,99 @@ function Get-SystemDrivesWMI
 
     end{}
 }
+
+function Get-ActiveNICSWMI
+{
+    <#
+    .SYNOPSIS
+    This function lists local and network drives connected to the target system.
+
+    .DESCRIPTION
+    This function lists local and network drives connected to the target system.
+
+    .PARAMETER User
+    Specify a username. Default is the current user context.
+
+    .PARAMETER Pass
+    Specify the password for the appropriate user.
+
+    .PARAMETER Targets
+    Host or array of hosts to target. Can be a hostname, IP address, or FQDN. Default is set to localhost.
+
+    .EXAMPLE
+    > Get-ActiveNICSWMI -Targets win7pc
+    This command connects to the remote system over wmi with the current credentials and gathers a list of active network adapters.
+
+    .EXAMPLE
+    > Get-ActiveNICSWMI -Targets win7pc2 -User test\chris -Pass Chris
+    This commands uses the credentials provided to gather a list of NICs with active connections on the win7pc2 system
+
+    .LINK
+    http://blogs.technet.com/b/heyscriptingguy/archive/2011/10/07/use-powershell-to-identify-your-real-network-adapter.aspx
+    #>
+
+    param
+    (
+        #Parameter assignment
+        [Parameter(Mandatory = $False)]
+        [string]$User,
+        [Parameter(Mandatory = $False)] 
+        [string]$Pass,
+        [Parameter(Mandatory = $False, ValueFromPipeLine=$True)] 
+        [string[]]$Targets = "."
+    )
+
+    Process
+    {
+        if($User -and $Pass)
+        {
+            # This block of code is executed when starting a process on a remote machine via wmi
+            $password = ConvertTo-SecureString $Pass -asplaintext -force 
+            $cred = New-Object -Typename System.Management.Automation.PSCredential -argumentlist $User,$password
+            Foreach($computer in $TARGETS)
+            {
+                $adapters = Get-WmiObject -class win32_networkadapterconfiguration -ComputerName $computer -Credential $cred
+                foreach($nic in $adapters)
+                {
+                    if($nic.IPAddress -ne $null)
+                    {
+                        $nic
+                    }
+                }
+            }
+        }
+
+        elseif(($Targets -ne ".") -and !$User)
+        {
+            # user didn't enter creds. Assume using local user priv has local admin access to Targets
+            # Thanks Evan for catching this
+            Foreach($computer in $TARGETS)
+            {
+                $adapters = Get-WmiObject -class win32_networkadapterconfiguration -ComputerName $computer
+                foreach($nic in $adapters)
+                {
+                    if($nic.IPAddress -ne $null)
+                    {
+                        $nic
+                    }
+                }
+            }
+        }
+
+        else
+        {
+            # If this area of code is invoked, it runs the command on the same machine the script is loaded
+            $adapters = Get-WmiObject -class win32_networkadapterconfiguration
+                foreach($nic in $adapters)
+                {
+                    if($nic.IPAddress -ne $null)
+                    {
+                        $nic
+                    }
+                }
+        }
+        
+    }
+
+    end{}
+}
