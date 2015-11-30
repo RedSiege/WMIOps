@@ -898,8 +898,8 @@ function Invoke-FileTransferOverWMI
     .PARAMETER LocalUser
     Specify a username for connecting back to the local system.  Needs to be local admin.
 
-    .PARAMETER LocalUser
-    Specify a username. Default is the current user context.
+    .PARAMETER LocalPass
+    Specify a password for local user account which connects back to local system.
 
     .PARAMETER TARGETS
     Host or array of hosts to target. Can be a hostname, IP address, or FQDN. Default is set to localhost.
@@ -912,6 +912,9 @@ function Invoke-FileTransferOverWMI
 
     .PARAMETER Upload
     Full path on remote system to upload file (including the file itself)
+
+    .PARAMETER Execute
+    Execute/run the uploaded or downloaded file
 
     .EXAMPLE
     > Transfer-FilesOverWmi -User Chris -Pass password -Targets win7workstation -File C:\Users\Chris\Desktop\test.txt -Download C:\Users\test\Downloads
@@ -944,7 +947,10 @@ function Invoke-FileTransferOverWMI
         [Parameter(Mandatory = $False, ParameterSetName='download')]
         [string]$Download,
         [Parameter(Mandatory = $False, ParameterSetName='upload')]
-        [string]$Upload
+        [string]$Upload,
+        [Parameter(Mandatory = $False,ParameterSetName='upload')]
+        [Parameter(ParameterSetName='download')]
+        [switch]$Execute
     )
     Process
     {
@@ -992,6 +998,12 @@ function Invoke-FileTransferOverWMI
                     Write-Verbose "Removing registry value storing uploaded file"
                     $local_reg = Remove-ItemProperty -Path $fullregistrypath -Name $registryupname
 
+                    if($Execute)
+                    {
+                        Write-Verbose "Executing file on remote system"
+                        Invoke-ExecCommandWMI -User $RemoteUser -Pass $RemotePass -Command $Upload -Targets $computer
+                    }
+
                     Write-Verbose "Done!"
                 }
 
@@ -1002,7 +1014,6 @@ function Invoke-FileTransferOverWMI
                     $remote_command = '$fct = Get-Content -Encoding byte -Path ''' + "$File" + '''; $fctenc = [System.Convert]::ToBase64String($fct); New-ItemProperty -Path ' + "'$fullregistrypath'" + ' -Name ' + "'$registrydownname'" + ' -Value $fctenc -PropertyType String -Force'
                     $remote_command = 'powershell -nop -exec bypass -c "' + $remote_command + '"'
                     Invoke-WmiMethod -class win32_process -Name Create -Argumentlist $remote_command -Credential $remotecred -Computername $computer
-                    
                     Write-Verbose "Sleeping to let remote system read and store file"
                     Start-Sleep -s 15
 
@@ -1027,4 +1038,178 @@ function Invoke-FileTransferOverWMI
             Throw "You need to provide usernames, passwords, and the system to target!"
         }
     }
+}
+
+function Get-SystemDrivesWMI
+{
+    <#
+    .SYNOPSIS
+    This function lists local and network drives connected to the target system.
+
+    .DESCRIPTION
+    This function lists local and network drives connected to the target system.
+
+    .PARAMETER User
+    Specify a username. Default is the current user context.
+
+    .PARAMETER Pass
+    Specify the password for the appropriate user.
+
+    .PARAMETER Targets
+    Host or array of hosts to target. Can be a hostname, IP address, or FQDN. Default is set to localhost.
+
+    .EXAMPLE
+    > Get-SystemDrivesWMI -Targets win7pc
+    This command connects to the remote system over wmi with the current credentials it is using and enumerates drives (local and network) on the win7pc system.
+
+    .EXAMPLE
+    > Get-SystemDrivesWMI -Targets win7pc2 -User test\chris -Pass Chris
+    This commands uses the credentials provided to list local and network drives on the win7pc2 system
+
+    .LINK
+    http://blogs.technet.com/b/heyscriptingguy/archive/2013/08/28/powertip-use-powershell-to-get-a-list-of-all-volumes.aspx
+    #>
+
+    param
+    (
+        #Parameter assignment
+        [Parameter(Mandatory = $False)]
+        [string]$User,
+        [Parameter(Mandatory = $False)] 
+        [string]$Pass,
+        [Parameter(Mandatory = $False, ValueFromPipeLine=$True)] 
+        [string[]]$Targets = "."
+    )
+
+    Process
+    {
+        if($User -and $Pass)
+        {
+            # This block of code is executed when starting a process on a remote machine via wmi
+            $password = ConvertTo-SecureString $Pass -asplaintext -force 
+            $cred = New-Object -Typename System.Management.Automation.PSCredential -argumentlist $User,$password
+            Foreach($computer in $TARGETS)
+            {
+                $filter = "DriveType = '4' OR DriveType = '3'"
+                Get-WmiObject -class win32_logicaldisk -ComputerName $computer -Filter $filter -Credential $cred
+            }
+        }
+
+        elseif(($Targets -ne ".") -and !$User)
+        {
+            # user didn't enter creds. Assume using local user priv has local admin access to Targets
+            # Thanks Evan for catching this
+            Foreach($computer in $TARGETS)
+            {
+                $filter = "DriveType = '4' OR DriveType = '3'"
+                Get-WmiObject -class win32_logicaldisk  -ComputerName $computer -Filter $filter
+            }
+        }
+
+        else
+        {
+            # If this area of code is invoked, it runs the command on the same machine the script is loaded
+            $filter = "DriveType = '4' OR DriveType = '3'"
+            Get-WmiObject -class win32_logicaldisk -Filter $filter
+        }
+        
+    }
+
+    end{}
+}
+
+function Get-ActiveNICSWMI
+{
+    <#
+    .SYNOPSIS
+    This function lists local and network drives connected to the target system.
+
+    .DESCRIPTION
+    This function lists local and network drives connected to the target system.
+
+    .PARAMETER User
+    Specify a username. Default is the current user context.
+
+    .PARAMETER Pass
+    Specify the password for the appropriate user.
+
+    .PARAMETER Targets
+    Host or array of hosts to target. Can be a hostname, IP address, or FQDN. Default is set to localhost.
+
+    .EXAMPLE
+    > Get-ActiveNICSWMI -Targets win7pc
+    This command connects to the remote system over wmi with the current credentials and gathers a list of active network adapters.
+
+    .EXAMPLE
+    > Get-ActiveNICSWMI -Targets win7pc2 -User test\chris -Pass Chris
+    This commands uses the credentials provided to gather a list of NICs with active connections on the win7pc2 system
+
+    .LINK
+    http://blogs.technet.com/b/heyscriptingguy/archive/2011/10/07/use-powershell-to-identify-your-real-network-adapter.aspx
+    #>
+
+    param
+    (
+        #Parameter assignment
+        [Parameter(Mandatory = $False)]
+        [string]$User,
+        [Parameter(Mandatory = $False)] 
+        [string]$Pass,
+        [Parameter(Mandatory = $False, ValueFromPipeLine=$True)] 
+        [string[]]$Targets = "."
+    )
+
+    Process
+    {
+        if($User -and $Pass)
+        {
+            # This block of code is executed when starting a process on a remote machine via wmi
+            $password = ConvertTo-SecureString $Pass -asplaintext -force 
+            $cred = New-Object -Typename System.Management.Automation.PSCredential -argumentlist $User,$password
+            Foreach($computer in $TARGETS)
+            {
+                $adapters = Get-WmiObject -class win32_networkadapterconfiguration -ComputerName $computer -Credential $cred
+                foreach($nic in $adapters)
+                {
+                    if($nic.IPAddress -ne $null)
+                    {
+                        $nic
+                    }
+                }
+            }
+        }
+
+        elseif(($Targets -ne ".") -and !$User)
+        {
+            # user didn't enter creds. Assume using local user priv has local admin access to Targets
+            # Thanks Evan for catching this
+            Foreach($computer in $TARGETS)
+            {
+                $adapters = Get-WmiObject -class win32_networkadapterconfiguration -ComputerName $computer
+                foreach($nic in $adapters)
+                {
+                    if($nic.IPAddress -ne $null)
+                    {
+                        $nic
+                    }
+                }
+            }
+        }
+
+        else
+        {
+            # If this area of code is invoked, it runs the command on the same machine the script is loaded
+            $adapters = Get-WmiObject -class win32_networkadapterconfiguration
+                foreach($nic in $adapters)
+                {
+                    if($nic.IPAddress -ne $null)
+                    {
+                        $nic
+                    }
+                }
+        }
+        
+    }
+
+    end{}
 }
