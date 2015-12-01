@@ -1213,3 +1213,182 @@ function Get-ActiveNICSWMI
 
     end{}
 }
+
+function Invoke-SchedJobManipulation
+{
+    <#
+    .SYNOPSIS
+    This function lists, creates, or deletes scheduled jobs on the target machine.
+
+    .DESCRIPTION
+    This function lists, creates, or deletes scheduled jobs on the target machine.
+
+    .PARAMETER User
+    Specify a username. Default is the current user context.
+
+    .PARAMETER Pass
+    Specify the password for the appropriate user.
+
+    .PARAMETER Targets
+    Host or array of hosts to target. Can be a hostname, IP address, or FQDN. Default is set to localhost.
+
+    .PARAMETER List
+    Switch to list scheduled jobs on the target system
+
+    .PARAMETER Create
+    String containing the path to the file that you would like to schedule to run
+
+    .PARAMETER Delete
+    String containing the job ID number to delete
+
+    .PARAMETER Time
+    The time you want a job to execute at
+
+    .EXAMPLE
+    > Invoke-SchedJobManipulation -Targets win7pc -List
+    This command connects to the remote system over wmi with the current credentials and lists all scheduled jobs on the system.
+
+    .EXAMPLE
+    > Invoke-SchedJobManipulation -Targets win7pc2 -User test\chris -Pass Chris -Delete 1
+    This commands uses the credentials provided to delete the scheduled task with the ID of 1 on the target system
+
+    .EXAMPLE
+    > Invoke-SchedJobManipulation -Targets win7pc2 -User test\chris -Pass Chris -Create notepad.exe -time 14:04
+    This commands uses the credentials provided to create a job that runs notepad.exe at 14:04
+
+    .LINK
+    http://blogs.technet.com/b/heyscriptingguy/archive/2009/03/31/how-can-i-list-and-delete-scheduled-jobs.aspx
+    #>
+
+    param
+    (
+        #Parameter assignment
+        [Parameter(Mandatory = $False)]
+        [string]$User,
+        [Parameter(Mandatory = $False)]
+        [string]$Pass,
+        [Parameter(Mandatory = $False, ValueFromPipeLine=$True)]
+        [string[]]$Targets = ".",
+        [Parameter(Mandatory = $False,ParameterSetName='list')]
+        [switch]$List,
+        [Parameter(Mandatory = $False,ParameterSetName='create')]
+        [string]$Create,
+        [Parameter(Mandatory = $False,ParameterSetName='delete')]
+        [string]$Delete,
+        [Parameter(Mandatory = $False,ParameterSetName='create')]
+        [string]$time
+    )
+
+    Process
+    {
+        if($User -and $Pass)
+        {
+            # This block of code is executed when starting a process on a remote machine via wmi
+            $password = ConvertTo-SecureString $Pass -asplaintext -force 
+            $cred = New-Object -Typename System.Management.Automation.PSCredential -argumentlist $User,$password
+            Foreach($computer in $TARGETS)
+            {
+                If($List)
+                {
+                    $jobs = Get-WmiObject -class win32_scheduledjob -ComputerName $computer -Credential $cred
+                    foreach($job in $jobs)
+                    {
+                        if($job -ne $null)
+                        {
+                            $job
+                            Write-Output "Start Time: " $job.StartTime
+                        }
+                    }
+                }
+
+                elseif($Delete)
+                {
+                    Write-Verbose "Deleting job $Delete"
+                    $job = Get-WmiObject -class win32_scheduledjob -ComputerName $computer -Credential $cred -Filter "jobID = $Delete"
+                    $job.delete()
+                    Write-Verbose "Job $Delete has been removed"                    
+                }
+
+                elseif($Create)
+                {
+                    Write-Verbose "Creating job on remote system"
+                    $wmi_sched_job = [wmiclass]"\\$env:computername\root\cimv2:win32_scheduledjob"
+                    $time = $wmi_sched_job.ConvertFromDateTime($time)
+                    (Get-WmiObject -list win32_scheduledjob -ComputerName $computer -Credential $cred).Create($Create,$time)
+                }
+            }
+        }
+
+        elseif(($Targets -ne ".") -and !$User)
+        {
+            # user didn't enter creds. Assume using local user priv has local admin access to Targets
+            # Thanks Evan for catching this
+            Foreach($computer in $TARGETS)
+            {
+                If($List)
+                {
+                    $jobs = Get-WmiObject -class win32_scheduledjob -ComputerName $computer
+                    foreach($job in $jobs)
+                    {
+                        if($job -ne $null)
+                        {
+                            $job
+                            Write-Output "Start Time: " $job.StartTime
+                        }
+                    }
+                }
+
+                elseif($Delete)
+                {
+                    Write-Verbose "Deleting job $Delete"
+                    $job = Get-WmiObject -class win32_scheduledjob -ComputerName $computer -Filter "jobID = $Delete"
+                    $job.delete()
+                    Write-Verbose "Job $Delete has been removed"                    
+                }
+
+                elseif($Create)
+                {
+                    Write-Verbose "Creating job on remote system"
+                    $wmi_sched_job = [wmiclass]"\\$env:computername\root\cimv2:win32_scheduledjob"
+                    $time = $wmi_sched_job.ConvertFromDateTime($time)
+                    (Get-WmiObject -list win32_scheduledjob -ComputerName $computer).Create($Create,$time)
+                }
+            }
+        }
+
+        else
+        {
+            # If this area of code is invoked, it runs the command on the same machine the script is loaded
+            If($List)
+            {
+                $jobs = Get-WmiObject -class win32_scheduledjob -ComputerName $computer
+                foreach($job in $jobs)
+                {
+                    if($job -ne $null)
+                    {
+                        $job
+                        Write-Output "Start Time: " $job.StartTime
+                    }
+                }
+            }
+
+            elseif($Delete)
+            {
+                Write-Verbose "Deleting job $Delete"
+                $job = Get-WmiObject -class win32_scheduledjob -ComputerName $computer -Filter "jobID = $Delete"
+                $job.delete()
+                Write-Verbose "Job $Delete has been removed"                    
+            }
+
+            elseif($Create)
+            {
+                Write-Verbose "Creating job on remote system"
+                $wmi_sched_job = [wmiclass]"\\$env:computername\root\cimv2:win32_scheduledjob"
+                $time = $wmi_sched_job.ConvertFromDateTime($time)
+                (Get-WmiObject -list win32_scheduledjob -ComputerName $computer).Create($Create,$time)
+            }
+        }
+    }
+
+    end{}
+}
