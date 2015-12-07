@@ -27,5 +27,6 @@ Thanks to:
     Invoke-FileTransferOverWMI          -   Uploads or Downloads files to/from the target machine over WMI
     Get-SystemDrivesWMI                 -   Lists all local and network connected drives on target system
     Get-ActiveNICSWMI                   -   Lists all NICs on target system with an IP address
+    Invoke-SchedJobManipulation         -   Allows you to list, delete, or create jobs on a system over WMI
 
 Original blog post documenting release - [https://www.christophertruncer.com/introducing-wmi-ops/](https://www.christophertruncer.com/introducing-wmi-ops/)
