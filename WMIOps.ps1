@@ -418,8 +418,8 @@ function Find-ActiveUsersWMI
             {
                 # Need to add in filtering here to stop if a "true" has been found for screensavers being active
                 Write-Verbose "Connecting to $computer"
-                $ScreenshotActive = Get-ProcessOwnersWMI -User $User -Pass $Pass -Targets $Targets | Select-String ".scr"
-                $LoginPrompt = Get-ProcessOwnersWMI -User $User -Pass $Pass -Targets $Targets | Select-String "LogonUI.exe"
+                $ScreenshotActive = Get-RunningProcessesWMI -User $User -Pass $Pass -Targets $Targets | Select-String ".scr"
+                $LoginPrompt = Get-RunningProcessesWMI -User $User -Pass $Pass -Targets $Targets | Select-String "LogonUI.exe"
 
                 # If either returned true, we can assume the user is not active at their desktop
                 if ($ScreenshotActive -or $LoginPrompt)
@@ -439,8 +439,8 @@ function Find-ActiveUsersWMI
             {
                 # Need to add in filtering here to stop if a "true" has been found for screensavers being active
                 Write-Verbose "Connecting to $computer"
-                [string]$ScreenshotActive = Get-RunningProcesses -User $User -Pass $Pass -Targets $Targets | Select-String ".scr"
-                [string]$LoginPrompt = Get-RunningProcesses -User $User -Pass $Pass -Targets $Targets | Select-String "LogonUI.exe"
+                $ScreenshotActive = Get-RunningProcesses -User $User -Pass $Pass -Targets $Targets | Select-String ".scr"
+                $LoginPrompt = Get-RunningProcesses -User $User -Pass $Pass -Targets $Targets | Select-String "LogonUI.exe"
 
                 # If either returned true, we can assume the user is not active at their desktop
                 if ($ScreenshotActive -or $LoginPrompt)
