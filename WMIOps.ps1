@@ -1416,6 +1416,15 @@ function Invoke-ServiceManipulation
     .PARAMETER Stop
     Stops the specified service
 
+    .PARAMETER Create
+    Creates a new service
+
+    .PARAMETER NewServiceName
+    Name for the service
+
+    .PARAMETER NewServicePath
+    Path to executable
+
     .EXAMPLE
     Invoke-ServiceManipulation -User Chris -Pass password -Service RemoteRegistry -Start -Targets windows1
     This example starts the remote registry on the windows1 system after authenticating as "Chris"
@@ -1424,8 +1433,11 @@ function Invoke-ServiceManipulation
     Invoke-ServiceManipulation -User Chris -Pass password -Service RemoteRegistry -Stop -Targets windows1
     This example starts the remote registry on the windows1 system after authenticating as "Chris"
 
+    .EXAMPLE
+    Invoke-ServiceManipulation -User Chris -Pass password -Create -NewServiceName Test1 -NewServicePath C:\File.exe
+
     .LINK
-    http://blogs.technet.com/b/heyscriptingguy/archive/2013/08/28/powertip-use-powershell-to-get-a-list-of-all-volumes.aspx
+    http://learningpcs.blogspot.com/2012/04/powershell-v2-invoke-wmimethod-create.html
     #>
 
     param
@@ -1439,11 +1451,20 @@ function Invoke-ServiceManipulation
         [string[]]$Targets = ".",
         [Parameter(Mandatory = $False,ParameterSetName='start')]
         [Parameter(ParameterSetName='stop')]
+        [Parameter(ParameterSetName='delete')]
         [string]$Service,
         [Parameter(Mandatory = $False,ParameterSetName='start')] 
         [switch]$Start,
         [Parameter(Mandatory = $False,ParameterSetName='stop')] 
-        [switch]$Stop
+        [switch]$Stop,
+        [Parameter(Mandatory = $False,ParameterSetName='create')] 
+        [switch]$Create,
+        [Parameter(Mandatory = $False,ParameterSetName='create')] 
+        [string]$NewServiceName,
+        [Parameter(Mandatory = $False,ParameterSetName='create')] 
+        [string]$NewServicePath,
+        [Parameter(Mandatory = $False,ParameterSetName='delete')] 
+        [switch]$Delete
     )
 
     Process
@@ -1455,15 +1476,27 @@ function Invoke-ServiceManipulation
             $cred = New-Object -Typename System.Management.Automation.PSCredential -argumentlist $User,$password
             Foreach($computer in $TARGETS)
             {
-                $filter = "name='$Service'"
-                $SystemService = Get-WmiObject -class win32_service -ComputerName $computer -Filter $filter -Credential $cred
-                if($Start)
+                if ($Start -or $Stop -or $Delete)
                 {
-                    $SystemService.StartService()
+                    $filter = "name='$Service'"
+                    $SystemService = Get-WmiObject -class win32_service -ComputerName $computer -Filter $filter -Credential $cred
+                    if($Start)
+                    {
+                        $SystemService.StartService()
+                    }
+                    elseif($Stop)
+                    {
+                        $SystemService.StopService()
+                    }
+                    elseif($Delete)
+                    {
+                        $SystemService.Delete()
+                    }
                 }
-                elseif($Stop)
+                elseif($Create)
                 {
-                    $SystemService.StopService()
+                    $args = $false,$NewServiceName,0,$null,$null,$NewServiceName,$NewServicePath,$null,16,"Automatic","LocalSystem",$null
+                    Invoke-WmiMethod -path Win32_Service -Name create -argumentlist $args -ComputerName $computer -Credential $cred
                 }
             }
         }
@@ -1474,8 +1507,38 @@ function Invoke-ServiceManipulation
             # Thanks Evan for catching this
             Foreach($computer in $TARGETS)
             {
+                if ($Start -or $Stop -or $Delete)
+                {
+                    $filter = "name='$Service'"
+                    $SystemService = Get-WmiObject -class win32_service -ComputerName $computer -Filter $filter
+                    if($Start)
+                    {
+                        $SystemService.StartService()
+                    }
+                    elseif($Stop)
+                    {
+                        $SystemService.StopService()
+                    }
+                    elseif($Delete)
+                    {
+                        $SystemService.Delete()
+                    }
+                }
+                elseif($Create)
+                {
+                    $args = $false,$NewServiceName,0,$null,$null,$NewServiceName,$NewServicePath,$null,16,"Automatic","LocalSystem",$null
+                    Invoke-WmiMethod -path Win32_Service -Name create -argumentlist $args -ComputerName $computer
+                }
+            }
+        }
+
+        else
+        {
+            # If this area of code is invoked, it runs the command on the same machine the script is loaded
+            if ($Start -or $Stop -or $Delete)
+            {
                 $filter = "name='$Service'"
-                $SystemService = Get-WmiObject -class win32_service -ComputerName $computer -Filter $filter -Credential $cred
+                $SystemService = Get-WmiObject -class win32_service -Filter $filter
                 if($Start)
                 {
                     $SystemService.StartService()
@@ -1484,21 +1547,15 @@ function Invoke-ServiceManipulation
                 {
                     $SystemService.StopService()
                 }
+                elseif($Delete)
+                {
+                    $SystemService.Delete()
+                }
             }
-        }
-
-        else
-        {
-            # If this area of code is invoked, it runs the command on the same machine the script is loaded
-            $filter = "name='$Service'"
-            $SystemService = Get-WmiObject -class win32_service -ComputerName $computer -Filter $filter -Credential $cred
-            if($Start)
+            elseif($Create)
             {
-                $SystemService.StartService()
-            }
-            elseif($Stop)
-            {
-                $SystemService.StopService()
+                $args = $false,$NewServiceName,0,$null,$null,$NewServiceName,$NewServicePath,$null,16,"Automatic","LocalSystem",$null
+                Invoke-WmiMethod -path Win32_Service -Name create -argumentlist $args -ComputerName $computer
             }
         }
         
