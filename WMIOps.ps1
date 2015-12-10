@@ -1712,3 +1712,115 @@ function Invoke-ServiceManipulation
 
     end{}
 }
+
+function Invoke-DirectoryListing
+{
+<#
+    .SYNOPSIS
+    This function will use wmi to invoke powershell, download a powershell script in memory, and post its output back to a system you specify.
+
+    .DESCRIPTION
+    This function will use wmi to invoke powershell, download a powershell script in memory, and post its output back to a system you specify.  You will want to use the included https server (python).
+
+    .PARAMETER User
+    Specify a username. Default is the current user context.
+
+    .PARAMETER Pass
+    Specify the password for the appropriate user.
+
+    .PARAMETER TARGETS
+    Host or array of hosts to target. Can be a hostname, IP address, or FQDN. Default is set to localhost.
+
+    .PARAMETER Directory
+    The URL to the powershell script that will be downloaded and run.
+
+    .EXAMPLE
+    
+    .LINK
+    http://powershell.com/cs/blogs/tips/archive/2009/04/07/accessing-individual-files-and-folders-remotely-via-wmi.aspx
+
+#>
+
+    param
+    (
+        #Parameter assignment
+        [Parameter(Mandatory = $False)] 
+        [string]$User,
+        [Parameter(Mandatory = $False)] 
+        [string]$Pass,
+        [Parameter(Mandatory = $False, ValueFromPipeLine=$True)] 
+        [string[]]$TARGETS = ".",
+        [Parameter(Mandatory = $False)] 
+        [string]$Directory
+    )
+
+    Process
+    {
+
+        if($User -and $Pass)
+        {
+            $password = ConvertTo-SecureString $Pass -asplaintext -force 
+            $cred = New-Object -Typename System.Management.Automation.PSCredential -argumentlist $User,$password
+            Foreach($computer in $TARGETS)
+            {
+                $Drive = $Directory.Substring(0,2)
+                $DirPath = $Directory.Substring(2)
+                $DirPath = $DirPath.Replace("\","\\")
+                if(!$DirPath.Endswith('\\'))
+                {
+                    $DirPath += "\\"
+                }
+                Write-Verbose "Connecting to $computer"
+                $filter = "Drive='$Drive' and Path='$DirPath'"
+                $listing = Get-WmiObject -Class Win32_Directory -Filter $filter -ComputerName $computer -Credential $cred
+                foreach($list in $listing)
+                {
+                    $list.Name
+                }
+            }
+        }
+
+        elseif(($Targets -ne ".") -and !$User)
+        {
+            # user didn't enter creds. Assume using local user priv has local admin access to Targets
+            # Thanks Evan for catching this
+            Foreach($computer in $TARGETS)
+            {
+                $Drive = $Directory.Substring(0,2)
+                $DirPath = $Directory.Substring(2)
+                $DirPath = $DirPath.Replace("\","\\")
+                if(!$DirPath.Endswith('\\'))
+                {
+                    $DirPath += "\\"
+                }
+                Write-Verbose "Connecting to $computer"
+                $filter = "Drive='$Drive' and Path='$DirPath'"
+                $listing = Get-WmiObject -Class Win32_Directory -Filter $filter -ComputerName $computer -Credential $cred
+                foreach($list in $listing)
+                {
+                    $list.Name
+                }
+            }
+        }
+
+        else
+        {
+            # If this area of code is invoked, it runs the command on the same machine the script is loaded
+            $Drive = $Directory.Substring(0,2)
+            $DirPath = $Directory.Substring(2)
+            $DirPath = $DirPath.Replace("\","\\")
+            if(!$DirPath.Endswith('\\'))
+            {
+                $DirPath += "\\"
+            }
+            Write-Verbose "Connecting to $computer"
+            $filter = "Drive='$Drive' and Path='$DirPath'"
+            $listing = Get-WmiObject -Class Win32_Directory -Filter $filter -ComputerName $computer -Credential $cred
+            foreach($list in $listing)
+            {
+                $list.Name
+            }
+        }
+    }
+    end{}
+}
