@@ -738,9 +738,9 @@ function Find-UserSpecifiedFileWMI
         [Parameter(Mandatory = $True)] 
         [string]$Drive,
         [Parameter(Mandatory = $False, ParameterSetName='extension')] 
-        [string]$Extension,
+        [string[]]$Extension,
         [Parameter(Mandatory = $False, ParameterSetName='filename')] 
-        [string]$File
+        [string[]]$File
     )
 
     process
@@ -766,68 +766,87 @@ function Find-UserSpecifiedFileWMI
             {
                 if($File)
                 {
-                    if($File.Contains("."))
+                    $counter = 0
+                    $filter = "Filename"
+                    foreach($incoming_file in $File)
                     {
-                        #get the index of the last .
-                        $index = $File.LastIndexOf(".")
-                        #get the first part of the name
-                        $filename=$File.Substring(0,$index)
-                        #get the last part of the name
-                        $extension=$File.Substring($index+1)
-                        if($filename -match "\*")
+                        if($counter -gt 0)
                         {
-                            $filename = $filename.Replace("*","%")
-                            $filenameOp="LIKE"
+                            $filter += "OR Filename"
+                        }
+
+                        if($incoming_file.Contains("."))
+                        {
+                            #get the index of the last .
+                            $index = $incoming_file.LastIndexOf(".")
+                            #get the first part of the name
+                            $filename = $incoming_file.Substring(0,$index)
+                            #get the last part of the name
+                            $extension = $incoming_file.Substring($index+1)
+
+                            if($filename -match "\*")
+                            {
+                                $filename = $filename.Replace("*","%")
+                                $filter += " LIKE '$filename' "
+                            }
+                            else
+                            {
+                                $filter += " = '$filename' "
+                            }
+
+                            if ($extension -match "\*")
+                            {
+                                $extension = $extension.Replace("*","%")
+                                $filter += "AND Extension LIKE '$extension' "
+                            }
+                            else 
+                            {
+                                $filter += "AND Extension = '$extension' "
+                            }
+                            
                         }
                         else
                         {
-                            $filenameOp="="
+                            if($incoming_file -match "\*")
+                            {
+                                $filename = $incoming_file.Replace("*","%")
+                                $filter += " LIKE '$filename' "
+                            }
+                            else
+                            {
+                                $filter += " = '$incoming_file' "
+                            }
                         }
-                        if ($extension -match "\*")
-                        {
-                            $extension = $extension.Replace("*","%")
-                            $extOp="LIKE"
-                        }
-                        else 
-                        {
-                            $extOp="="
-                        }
-                        $filter = "Filename $filenameOp '$filename' AND extension $extOp '$extension' AND Drive='$drive'"
-                        Get-WmiObject -Class cim_datafile -filter $filter -ComputerName $computer -Credential $cred
-                        
-                    }
-                    else
-                    {
-                        if($filename -match "\*")
-                        {
-                            $filename = $filename.Replace("*","%")
-                            $filenameOp="LIKE"
-                        }
-                        else
-                        {
-                            $filenameOp="="
-                        }
-                        $filter = "Filename $filenameOp '$file' AND Drive='$drive'"
-                        Get-WmiObject -Class cim_datafile -filter $filter -ComputerName $computer -Credential $cred
+                        $counter += 1
                     }
                 }
 
                 else
                 {
-                    if ($extension -match "\*")
+                    $counter = 0
+                    $filter = "Extension"
+                    foreach($ext in $extension)
                     {
-                        $extension = $extension.Replace("*","%")
-                        $extOp="LIKE"
+                        if($counter -gt 0)
+                        {
+                            $filter += "OR Extension"
+                        }
+
+                        if ($ext -match "\*")
+                        {
+                            $ext = $ext.Replace("*","%")
+                            $filter += " LIKE '$ext' "
+                        }
+                        else 
+                        {
+                            $filter += " = '$ext' "
+                        }
+                        $counter += 1
                     }
-                    else 
-                    {
-                        $extOp="="
-                    }
-                    $filter = "extension $extOp '$extension' AND Drive='$drive'"
-                    Get-WmiObject -Class cim_datafile -filter $filter -ComputerName $computer -Credential $cred
                 }
             }
-
+            $filter += "AND Drive='$drive'"
+            Get-WmiObject -Class cim_datafile -filter $filter -ComputerName $computer -Credential $cred
         }
         elseif(($Targets -ne ".") -and !$User)
         {
@@ -835,44 +854,173 @@ function Find-UserSpecifiedFileWMI
             {
                 if($File)
                 {
-                    #get the index of the last .
-                    $index = $File.LastIndexOf(".")
-                    #get the first part of the name
-                    $filename=$File.Substring(0,$index)
-                    #get the last part of the name
-                    $extension=$File.Substring($index+1)
-                    $filter = "Filename='$filename' AND extension='$extension' AND Drive='$drive'"
-                    Get-WmiObject -Class cim_datafile -filter $filter -ComputerName $computer
+                    $counter = 0
+                    $filter = "Filename"
+                    foreach($incoming_file in $File)
+                    {
+                        if($counter -gt 0)
+                        {
+                            $filter += "OR Filename"
+                        }
+
+                        if($incoming_file.Contains("."))
+                        {
+                            #get the index of the last .
+                            $index = $incoming_file.LastIndexOf(".")
+                            #get the first part of the name
+                            $filename = $incoming_file.Substring(0,$index)
+                            #get the last part of the name
+                            $extension = $incoming_file.Substring($index+1)
+
+                            if($filename -match "\*")
+                            {
+                                $filename = $filename.Replace("*","%")
+                                $filter += " LIKE '$filename' "
+                            }
+                            else
+                            {
+                                $filter += " = '$filename' "
+                            }
+
+                            if ($extension -match "\*")
+                            {
+                                $extension = $extension.Replace("*","%")
+                                $filter += "AND Extension LIKE '$extension' "
+                            }
+                            else 
+                            {
+                                $filter += "AND Extension = '$extension' "
+                            }
+                            
+                        }
+                        else
+                        {
+                            if($incoming_file -match "\*")
+                            {
+                                $filename = $incoming_file.Replace("*","%")
+                                $filter += " LIKE '$filename' "
+                            }
+                            else
+                            {
+                                $filter += " = '$incoming_file' "
+                            }
+                        }
+                        $counter += 1
+                    }
                 }
 
                 else
                 {
-                    $filter = "extension='$extension' AND Drive='$drive'"
-                    Get-WmiObject -Class cim_datafile -filter $filter -ComputerName $computer
+                    $counter = 0
+                    $filter = "Extension"
+                    foreach($ext in $extension)
+                    {
+                        if($counter -gt 0)
+                        {
+                            $filter += "OR Extension"
+                        }
+
+                        if ($ext -match "\*")
+                        {
+                            $ext = $ext.Replace("*","%")
+                            $filter += " LIKE '$ext' "
+                        }
+                        else 
+                        {
+                            $filter += " = '$ext' "
+                        }
+                        $counter += 1
+                    }
                 }
             }
+            $filter += "AND Drive='$drive'"
+            Get-WmiObject -Class cim_datafile -filter $filter -ComputerName $computer
         }
         else 
         {
             if($File)
             {
-                #get the index of the last .
-                $index = $File.LastIndexOf(".")
-                #get the first part of the name
-                $filename=$File.Substring(0,$index)
-                #get the last part of the name
-                $extension=$File.Substring($index+1)
-                $filter = "Filename='$filename' AND extension='$extension' AND Drive='$drive'"
-                Get-WmiObject -Class cim_datafile -filter $filter
+                $counter = 0
+                $filter = "Filename"
+                foreach($incoming_file in $File)
+                {
+                    if($counter -gt 0)
+                    {
+                        $filter += "OR Filename"
+                    }
+
+                    if($incoming_file.Contains("."))
+                    {
+                        #get the index of the last .
+                        $index = $incoming_file.LastIndexOf(".")
+                        #get the first part of the name
+                        $filename = $incoming_file.Substring(0,$index)
+                        #get the last part of the name
+                        $extension = $incoming_file.Substring($index+1)
+
+                        if($filename -match "\*")
+                        {
+                            $filename = $filename.Replace("*","%")
+                            $filter += " LIKE '$filename' "
+                        }
+                        else
+                        {
+                            $filter += " = '$filename' "
+                        }
+
+                        if ($extension -match "\*")
+                        {
+                            $extension = $extension.Replace("*","%")
+                            $filter += "AND Extension LIKE '$extension' "
+                        }
+                        else 
+                        {
+                            $filter += "AND Extension = '$extension' "
+                        }
+                        
+                    }
+                    else
+                    {
+                        if($incoming_file -match "\*")
+                        {
+                            $filename = $incoming_file.Replace("*","%")
+                            $filter += " LIKE '$filename' "
+                        }
+                        else
+                        {
+                            $filter += " = '$incoming_file' "
+                        }
+                    }
+                    $counter += 1
+                }
             }
 
             else
             {
-                $filter = "extension='$extension' AND Drive='$drive'"
-                Get-WmiObject -Class cim_datafile -filter $filter
-            }
-        }
+                $counter = 0
+                $filter = "Extension"
+                foreach($ext in $extension)
+                {
+                    if($counter -gt 0)
+                    {
+                        $filter += "OR Extension"
+                    }
 
+                    if ($ext -match "\*")
+                    {
+                        $ext = $ext.Replace("*","%")
+                        $filter += " LIKE '$ext' "
+                    }
+                    else 
+                    {
+                        $filter += " = '$ext' "
+                    }
+                    $counter += 1
+                }
+            }
+            $filter += "AND Drive='$drive'"
+            Get-WmiObject -Class cim_datafile -filter $filter -ComputerName $computer
+        }
     }
 }
 
@@ -1435,6 +1583,7 @@ function Invoke-ServiceManipulation
 
     .EXAMPLE
     Invoke-ServiceManipulation -User Chris -Pass password -Create -NewServiceName Test1 -NewServicePath C:\File.exe
+    This example creates a service called "Test1" with the binary located at C:\File.exe
 
     .LINK
     http://learningpcs.blogspot.com/2012/04/powershell-v2-invoke-wmimethod-create.html
