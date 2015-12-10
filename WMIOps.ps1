@@ -1388,3 +1388,178 @@ function Invoke-SchedJobManipulation
 
     end{}
 }
+
+function Invoke-ServiceManipulation
+{
+    <#
+    .SYNOPSIS
+    This function starts and stops systems on a target system.
+
+    .DESCRIPTION
+    This function starts and stops systems on a target system.
+
+    .PARAMETER User
+    Specify a username. Default is the current user context.
+
+    .PARAMETER Pass
+    Specify the password for the appropriate user.
+
+    .PARAMETER Targets
+    Host or array of hosts to target. Can be a hostname, IP address, or FQDN. Default is set to localhost.
+
+    .PARAMETER Service
+    Name of the service to manipulate.
+
+    .PARAMETER Start
+    Starts the specified service
+
+    .PARAMETER Stop
+    Stops the specified service
+
+    .PARAMETER Create
+    Creates a new service
+
+    .PARAMETER NewServiceName
+    Name for the service
+
+    .PARAMETER NewServicePath
+    Path to executable
+
+    .EXAMPLE
+    Invoke-ServiceManipulation -User Chris -Pass password -Service RemoteRegistry -Start -Targets windows1
+    This example starts the remote registry on the windows1 system after authenticating as "Chris"
+
+    .EXAMPLE
+    Invoke-ServiceManipulation -User Chris -Pass password -Service RemoteRegistry -Stop -Targets windows1
+    This example starts the remote registry on the windows1 system after authenticating as "Chris"
+
+    .EXAMPLE
+    Invoke-ServiceManipulation -User Chris -Pass password -Create -NewServiceName Test1 -NewServicePath C:\File.exe
+
+    .LINK
+    http://learningpcs.blogspot.com/2012/04/powershell-v2-invoke-wmimethod-create.html
+    #>
+
+    param
+    (
+        #Parameter assignment
+        [Parameter(Mandatory = $False)]
+        [string]$User,
+        [Parameter(Mandatory = $False)] 
+        [string]$Pass,
+        [Parameter(Mandatory = $False, ValueFromPipeLine=$True)] 
+        [string[]]$Targets = ".",
+        [Parameter(Mandatory = $False,ParameterSetName='start')]
+        [Parameter(ParameterSetName='stop')]
+        [Parameter(ParameterSetName='delete')]
+        [string]$Service,
+        [Parameter(Mandatory = $False,ParameterSetName='start')] 
+        [switch]$Start,
+        [Parameter(Mandatory = $False,ParameterSetName='stop')] 
+        [switch]$Stop,
+        [Parameter(Mandatory = $False,ParameterSetName='create')] 
+        [switch]$Create,
+        [Parameter(Mandatory = $False,ParameterSetName='create')] 
+        [string]$NewServiceName,
+        [Parameter(Mandatory = $False,ParameterSetName='create')] 
+        [string]$NewServicePath,
+        [Parameter(Mandatory = $False,ParameterSetName='delete')] 
+        [switch]$Delete
+    )
+
+    Process
+    {
+        if($User -and $Pass)
+        {
+            # This block of code is executed when starting a process on a remote machine via wmi
+            $password = ConvertTo-SecureString $Pass -asplaintext -force 
+            $cred = New-Object -Typename System.Management.Automation.PSCredential -argumentlist $User,$password
+            Foreach($computer in $TARGETS)
+            {
+                if ($Start -or $Stop -or $Delete)
+                {
+                    $filter = "name='$Service'"
+                    $SystemService = Get-WmiObject -class win32_service -ComputerName $computer -Filter $filter -Credential $cred
+                    if($Start)
+                    {
+                        $SystemService.StartService()
+                    }
+                    elseif($Stop)
+                    {
+                        $SystemService.StopService()
+                    }
+                    elseif($Delete)
+                    {
+                        $SystemService.Delete()
+                    }
+                }
+                elseif($Create)
+                {
+                    $args = $false,$NewServiceName,0,$null,$null,$NewServiceName,$NewServicePath,$null,16,"Automatic","LocalSystem",$null
+                    Invoke-WmiMethod -path Win32_Service -Name create -argumentlist $args -ComputerName $computer -Credential $cred
+                }
+            }
+        }
+
+        elseif(($Targets -ne ".") -and !$User)
+        {
+            # user didn't enter creds. Assume using local user priv has local admin access to Targets
+            # Thanks Evan for catching this
+            Foreach($computer in $TARGETS)
+            {
+                if ($Start -or $Stop -or $Delete)
+                {
+                    $filter = "name='$Service'"
+                    $SystemService = Get-WmiObject -class win32_service -ComputerName $computer -Filter $filter
+                    if($Start)
+                    {
+                        $SystemService.StartService()
+                    }
+                    elseif($Stop)
+                    {
+                        $SystemService.StopService()
+                    }
+                    elseif($Delete)
+                    {
+                        $SystemService.Delete()
+                    }
+                }
+                elseif($Create)
+                {
+                    $args = $false,$NewServiceName,0,$null,$null,$NewServiceName,$NewServicePath,$null,16,"Automatic","LocalSystem",$null
+                    Invoke-WmiMethod -path Win32_Service -Name create -argumentlist $args -ComputerName $computer
+                }
+            }
+        }
+
+        else
+        {
+            # If this area of code is invoked, it runs the command on the same machine the script is loaded
+            if ($Start -or $Stop -or $Delete)
+            {
+                $filter = "name='$Service'"
+                $SystemService = Get-WmiObject -class win32_service -Filter $filter
+                if($Start)
+                {
+                    $SystemService.StartService()
+                }
+                elseif($Stop)
+                {
+                    $SystemService.StopService()
+                }
+                elseif($Delete)
+                {
+                    $SystemService.Delete()
+                }
+            }
+            elseif($Create)
+            {
+                $args = $false,$NewServiceName,0,$null,$null,$NewServiceName,$NewServicePath,$null,16,"Automatic","LocalSystem",$null
+                Invoke-WmiMethod -path Win32_Service -Name create -argumentlist $args -ComputerName $computer
+            }
+        }
+        
+    }
+
+    end{}
+}
