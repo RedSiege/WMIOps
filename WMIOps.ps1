@@ -1735,6 +1735,8 @@ function Invoke-DirectoryListing
     The URL to the powershell script that will be downloaded and run.
 
     .EXAMPLE
+    Invoke-DirectoryListing -User chris -Pass password -targets win7pc -Directory C:\Users
+    This uses the credentials provided to authenticate to the win7pc system and give a directory listing of everything within C:\Users
     
     .LINK
     http://powershell.com/cs/blogs/tips/archive/2009/04/07/accessing-individual-files-and-folders-remotely-via-wmi.aspx
