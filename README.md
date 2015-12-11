@@ -29,5 +29,7 @@ Thanks to:
     Get-ActiveNICSWMI                   -   Lists all NICs on target system with an IP address
     Invoke-SchedJobManipulation         -   Allows you to list, delete, or create jobs on a system over WMI
     Invole-ServiceManipulation          -   Allows you to start, stop, create, or delete services on a targeted system over WMI
+    Invoke-DirectoryListing             -   Lists files/directories within a user specfied directory over WMI
+    Get-FileContentsWMI                 -   Reads the contents of a user specified file on a target system and displays the contents
 
 Original blog post documenting release - [https://www.christophertruncer.com/introducing-wmi-ops/](https://www.christophertruncer.com/introducing-wmi-ops/)
