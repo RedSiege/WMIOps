@@ -1,7 +1,7 @@
 #requires -version 2
 
 <#
-    WMIOps v1.0
+    WMIOps v1.2
     License: GPLv3
     Author: @ChrisTruncer
 #>
