@@ -31,5 +31,6 @@ Thanks to:
     Invole-ServiceManipulation          -   Allows you to start, stop, create, or delete services on a targeted system over WMI
     Invoke-DirectoryListing             -   Lists files/directories within a user specfied directory over WMI
     Get-FileContentsWMI                 -   Reads the contents of a user specified file on a target system and displays the contents
+    Invoke-PowerOptionsWMI              -   Force logs off all users, reboots, or shuts down targeted system
 
 Original blog post documenting release - [https://www.christophertruncer.com/introducing-wmi-ops/](https://www.christophertruncer.com/introducing-wmi-ops/)

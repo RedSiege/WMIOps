@@ -1944,3 +1944,149 @@ function Get-FileContentsWMI
 
     end{}
 }
+
+function Invoke-PowerOptionsWMI
+{
+<#
+    .SYNOPSIS
+    This function uses WMI to log off a user, reboot, or shutdown the targeted system.
+
+    .DESCRIPTION
+    This function uses WMI to log off a user, reboot, or shutdown the targeted system.  It does so by force performing the action specified.
+
+    .PARAMETER User
+    Specify a username. Default is the current user context.
+
+    .PARAMETER Pass
+    Specify the password for the appropriate user.
+
+    .PARAMETER TARGETS
+    Host or array of hosts to target. Can be a hostname, IP address, or FQDN. Default is set to localhost.
+
+    .PARAMETER Shutdown
+    Force shuts down the targeted system
+
+    .PARAMETER Reboot
+    Force reboots the targeted system
+
+    .PARAMETER Logoff
+    Force logs off any user on the targeted system
+
+    .EXAMPLE
+    Invoke-PowerOptionsWMI -User chris -Pass password -targets win7pc -Logoff
+    This function uses the provided credentials to authenticate to the target machine and logoff all users
+
+    .EXAMPLE
+    Invoke-PowerOptionsWMI -User chris -Pass password -targets win7pc -Shutdown
+    This function uses the provided credentials to authenticate to the target machine and shuts down the system.
+    
+    .LINK
+    http://lizardsystems.com/wiki/articles/shutdown_power_off_or_reboot_a_remote_computer_from_powershell
+#>
+
+    param
+    (
+        #Parameter assignment
+        [Parameter(Mandatory = $False)] 
+        [string]$User,
+        [Parameter(Mandatory = $False)] 
+        [string]$Pass,
+        [Parameter(Mandatory = $False, ValueFromPipeLine=$True)] 
+        [string[]]$TARGETS = ".",
+        [Parameter(Mandatory = $False, ParameterSetName='shutdown')] 
+        [switch]$Shutdown,
+        [Parameter(Mandatory = $False, ParameterSetName='reboot')] 
+        [switch]$Reboot,
+        [Parameter(Mandatory = $False, ParameterSetName='logoff')] 
+        [switch]$Logoff
+    )
+
+    Process
+    {
+
+        if($User -and $Pass)
+        {
+            $password = ConvertTo-SecureString $Pass -asplaintext -force 
+            $cred = New-Object -Typename System.Management.Automation.PSCredential -argumentlist $User,$password
+            Foreach($computer in $TARGETS)
+            {
+                if($Shutdown)
+                {
+                    $power_option = 5
+                }
+                elseif($Reboot)
+                {
+                    $power_option = 6
+                }
+                elseif($Logoff)
+                {
+                    $power_option = 4
+                }
+                else
+                {
+                    Write-Verbose "Not sure how you hit this unless you didn't provide a power options to do.  Please restart!"
+                    exit
+                }
+
+                Write-Verbose "Connecting to $computer"
+                (gwmi win32_operatingsystem -Credential $cred -ComputerName $computer).Win32Shutdown($power_option)
+
+            }
+        }
+
+        elseif(($Targets -ne ".") -and !$User)
+        {
+            # user didn't enter creds. Assume using local user priv has local admin access to Targets
+            # Thanks Evan for catching this
+            Foreach($computer in $TARGETS)
+            {
+                if($Shutdown)
+                {
+                    $power_option = 5
+                }
+                elseif($Reboot)
+                {
+                    $power_option = 6
+                }
+                elseif($Logoff)
+                {
+                    $power_option = 4
+                }
+                else
+                {
+                    Write-Verbose "Not sure how you hit this unless you didn't provide a power options to do.  Please restart!"
+                    exit
+                }
+
+                Write-Verbose "Connecting to $computer"
+                (gwmi win32_operatingsystem -ComputerName $computer).Win32Shutdown($power_option)
+            }
+        }
+
+        else
+        {
+            # If this area of code is invoked, it runs the command on the same machine the script is loaded
+            if($Shutdown)
+                {
+                    $power_option = 5
+                }
+                elseif($Reboot)
+                {
+                    $power_option = 6
+                }
+                elseif($Logoff)
+                {
+                    $power_option = 4
+                }
+                else
+                {
+                    Write-Verbose "Not sure how you hit this unless you didn't provide a power options to do.  Please restart!"
+                    exit
+                }
+
+                Write-Verbose "Connecting to $computer"
+                (gwmi win32_operatingsystem).Win32Shutdown($power_option)
+        }
+    }
+    end{}
+}
