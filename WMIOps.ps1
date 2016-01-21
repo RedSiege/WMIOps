@@ -378,20 +378,26 @@ function Find-ActiveUsersWMI
     .PARAMETER Pass
     Specify the password for the appropriate user.
 
+    .PARAMETER Away
+    Checks if screen is locked or screen saver is active.
+
+    .PARAMETER Empty
+    Checks if user is logged into system at all.
+
     .PARAMETER TARGETS
     Host or array of hosts to target. Can be a hostname, IP address, or FQDN. Default is set to localhost.
 
     .EXAMPLE
-    > Query-UsersActive -User Chris -Pass password -Targets win7workstation
-    This attempts to authenticate to win7workstation with the Chris account and password to best guess if a user is active on the remote machine.
+    > Find-ActiveUsersWMI -User Chris -Pass password -Targets win7workstation -Empty
+    This attempts to authenticate to win7workstation with the Chris account and password to see if a user is logged into the system at all.
 
     .EXAMPLE
-    > Query-UsersActive
-    This will obtain a list of user accounts which have running processes on the local machine.
+    > Get-Content C:\ips.txt | Find-ActiveUsersWMI -Away
+    This will read in IPs, pass them into ActiveUsers, and then see if the user is away (by screensaver detection or locked screen).
 
     .Example
-    > Query-UsersActive -Targets win7workstation
-    This will attempt to authenticate to the win7workstation machine with the current account to best guess if a user is active on the remote machine.
+    > Query-UsersActive -Targets win7workstation -Empty -Away
+    This will attempt to authenticate to the win7workstation machine with the current account to see if the computer is locked, or screen saver is active.  It will also see if a user is logged into the system at all.
 
     .LINK
     http://www.activxperts.com/admin/scripts/wmi/powershell/0388/
@@ -405,7 +411,11 @@ function Find-ActiveUsersWMI
         [Parameter(Mandatory = $False)] 
         [string]$Pass,
         [Parameter(Mandatory = $False, ValueFromPipeLine=$True)] 
-        [string[]]$TARGETS = "."
+        [string[]]$TARGETS = ".",
+        [Parameter(Mandatory = $False)] 
+        [switch]$Away,
+        [Parameter(Mandatory = $False)] 
+        [switch]$Empty
     )
     Process
     {
@@ -418,17 +428,42 @@ function Find-ActiveUsersWMI
             {
                 # Need to add in filtering here to stop if a "true" has been found for screensavers being active
                 Write-Verbose "Connecting to $computer"
-                $ScreenshotActive = Get-RunningProcessesWMI -User $User -Pass $Pass -Targets $Targets | Select-String ".scr"
-                $LoginPrompt = Get-RunningProcessesWMI -User $User -Pass $Pass -Targets $Targets | Select-String "LogonUI.exe"
+                
+                if($Away)
+                {
+                    $all_processes = Get-RunningProcessesWMI -User $User -Pass $Pass -Targets $Targets
+                    $ScreenshotActive = $all_processes | Select-String ".scr"
+                    $LoginPrompt = $all_processes | Select-String "LogonUI.exe"
 
-                # If either returned true, we can assume the user is not active at their desktop
-                if ($ScreenshotActive -or $LoginPrompt)
-                {
-                    Write-Output "User is not present!"
+                    # If either returned true, we can assume the user is not active at their desktop
+                    if ($ScreenshotActive -or $LoginPrompt)
+                    {
+                        Write-Output "User is not present at $computer!"
+                    }
+                    else
+                    {
+                        Write-Output "User is at present at $computer!"
+                    }
                 }
-                else
+                if($Empty)
                 {
-                    Write-Output "User is at their desktop!"
+                    try
+                    {
+                        $user = $null
+                        $user = Get-WmiObject -Class win32_computersystem -Credential $cred -ComputerName $computer -ErrorAction Stop | select -ExpandProperty username
+                    }
+                    catch
+                    { 
+                        $message = $_.Exception.Message
+                        if($message -like '*not process argument because*')
+                        {
+                            $computer
+                        }
+                        elseif($message -like '*RPC server is unavailable*')
+                        {
+                            Write-Verbose "Cannot connect to $computer"
+                        }
+                    }
                 }
             }
         }
@@ -439,26 +474,87 @@ function Find-ActiveUsersWMI
             {
                 # Need to add in filtering here to stop if a "true" has been found for screensavers being active
                 Write-Verbose "Connecting to $computer"
-                $ScreenshotActive = Get-RunningProcesses -User $User -Pass $Pass -Targets $Targets | Select-String ".scr"
-                $LoginPrompt = Get-RunningProcesses -User $User -Pass $Pass -Targets $Targets | Select-String "LogonUI.exe"
+                
+                if($Away)
+                {
+                    $all_processes = Get-RunningProcessesWMI -User $User -Pass $Pass -Targets $Targets
+                    $ScreenshotActive = $all_processes | Select-String ".scr"
+                    $LoginPrompt = $all_processes | Select-String "LogonUI.exe"
 
-                # If either returned true, we can assume the user is not active at their desktop
-                if ($ScreenshotActive -or $LoginPrompt)
-                {
-                    Write-Output "User is not present!"
+                    # If either returned true, we can assume the user is not active at their desktop
+                    if ($ScreenshotActive -or $LoginPrompt)
+                    {
+                        Write-Output "User is not present at $computer!"
+                    }
+                    else
+                    {
+                        Write-Output "User is at present at $computer!"
+                    }
                 }
-                else
+                if($Empty)
                 {
-                    Write-Output "User is at their desktop!"
+                    try
+                    {
+                        $user = $null
+                        $user = Get-WmiObject -Class win32_computersystem -ComputerName $computer -ErrorAction Stop | select -ExpandProperty username
+                    }
+                    catch
+                    { 
+                        $message = $_.Exception.Message
+                        if($message -like '*not process argument because*')
+                        {
+                            $computer
+                        }
+                        elseif($message -like '*RPC server is unavailable*')
+                        {
+                            Write-Verbose "Cannot connect to $computer"
+                        }
+                    }
                 }
             }
         }
 
         else
         {
-            Write-Verbose "Checking local system..."
-            Get-WMIObject Win32_Desktop | ForEach-Object { $_.ScreenSaverActive } | Sort-Object | Get-Unique
-            Get-WMIObject Win32_Process -filter 'name = "LogonUI.exe"' | ForEach-Object { $_.ProcessName } | Sort-Object | Get-Unique
+            # Need to add in filtering here to stop if a "true" has been found for screensavers being active
+                Write-Verbose "Connecting to $computer"
+                
+                if($Away)
+                {
+                    $all_processes = Get-RunningProcessesWMI -User $User -Pass $Pass -Targets $Targets
+                    $ScreenshotActive = $all_processes | Select-String ".scr"
+                    $LoginPrompt = $all_processes | Select-String "LogonUI.exe"
+
+                    # If either returned true, we can assume the user is not active at their desktop
+                    if ($ScreenshotActive -or $LoginPrompt)
+                    {
+                        Write-Output "User is not present at $computer!"
+                    }
+                    else
+                    {
+                        Write-Output "User is at present at $computer!"
+                    }
+                }
+                if($Empty)
+                {
+                    try
+                    {
+                        $user = $null
+                        $user = Get-WmiObject -Class win32_computersystem -ComputerName $computer -ErrorAction Stop | select -ExpandProperty username
+                    }
+                    catch
+                    { 
+                        $message = $_.Exception.Message
+                        if($message -like '*not process argument because*')
+                        {
+                            $computer
+                        }
+                        elseif($message -like '*RPC server is unavailable*')
+                        {
+                            Write-Verbose "Cannot connect to $computer"
+                        }
+                    }
+                }
         }
     }
 }
