@@ -840,7 +840,8 @@ function Invoke-RemoteScriptWithOutput
                     $reghive = 2147483650
                     $regpath = "SOFTWARE\Microsoft\DRM"
                     $SystemHostname = Get-WMIObject Win32_ComputerSystem | Select-Object -ExpandProperty name
-                    $Command += '$fctenc = [System.Convert]::ToBase64String($output); New-ItemProperty -Path ' + "'$fullregistrypath'" + ' -Name ' + "'$registrydownname'" + ' -Value $fctenc -PropertyType String -Force'
+                    $Command += ' $bytes = [System.Text.Encoding]::Ascii.GetBytes($output); $EncodedText = [Convert]::ToBase64String($bytes);'
+                    $Command += ' New-ItemProperty -Path ' + "'$fullregistrypath'" + ' -Name ' + "'$registrydownname'" + ' -Value $EncodedText -PropertyType String -Force'
                 }
 
                 else 
