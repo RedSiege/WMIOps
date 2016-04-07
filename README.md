@@ -34,7 +34,7 @@ Thanks to:
     Invoke-CreateShareandExecute        -   Creates a share, copies file into it, uses WMI to invoke the script on the target system, from the local system, via UNC path
     Invoke-RemoteScriptWithOutput       -   Executes a powershell script in memory on the target host via WMI and returns the output
     Invoke-SchedJobManipulation         -   Allows you to list, delete, or create jobs on a system over WMI
-    Invole-ServiceManipulation          -   Allows you to start, stop, create, or delete services on a targeted system over WMI
+    Invoke-ServiceManipulation          -   Allows you to start, stop, create, or delete services on a targeted system over WMI
     Invoke-PowerOptionsWMI              -   Force logs off all users, reboots, or shuts down targeted system
 
 ## File Operations
