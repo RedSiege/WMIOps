@@ -28,11 +28,11 @@ function Invoke-ExecCommandWMI
     Specify the command that is executed on the targeted machine.
 
     .EXAMPLE
-    > Invoke-WmiExecCommand -Command ping -n 4 192.168.1.1
+    > Invoke-ExecCommandWMI -Command ping -n 4 192.168.1.1
     This pings the system at 192.168.1.1 with 4 ping requests from the local system
 
     .EXAMPLE
-    > cat hostnames.txt | Invoke-WmiExecCommand -Command notepad.exe -User Chris -Pass password
+    > cat hostnames.txt | Invoke-ExecCommandWMI -Command notepad.exe -User Chris -Pass password
     This command receives hostnames to target from the pipeline, authenticates to them, and starts notepad.exe
 
     .LINK
@@ -728,7 +728,7 @@ function Invoke-CreateShareandExecute
                 # http://stackoverflow.com/questions/14345972/powershell-invoke-wmimethod-to-create-a-sharefolder-remotely-with-full-control/14346750#14346750
                 
                 Write-Verbose "Executing the payload via WMI on remote system..."
-                Invoke-WmiExecCommand -User $User -Pass $Pass -Targets $computer -Command $ExecFullCommand
+                Invoke-ExecCommandWMI -User $User -Pass $Pass -Targets $computer -Command $ExecFullCommand
                 
                 Write-Verbose "Sleeping for 7 seconds to let command execute..."
                 Start-Sleep -s 7
