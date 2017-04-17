@@ -1,4 +1,4 @@
-#WMIOps
+# WMIOps
 
 WMIOps is a powershell script that uses WMI to perform a variety of actions on hosts, local or remote, within
 a Windows environment.  It's designed primarily for use on penetration tests or red team engagements.
